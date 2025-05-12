@@ -29,7 +29,7 @@ A lightning-fast Node.js solution to automatically mirror your Twitter content t
 
 ```bash
 # Clone the repository
-git clone https://github.com/ytrackko/twitter-telegram-bot.git
+git clone https://github.com/trackko/twitter-telegram-bot.git
 cd twitter-telegram-bot
 
 # Install dependencies
