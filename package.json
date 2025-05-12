@@ -20,4 +20,7 @@
   "engines": {
     "node": ">=18.x"
   }
+"dependencies": {
+  "twitter-api-v2": "^1.14.1"
 }
+ }
