@@ -1,63 +1,63 @@
 const { TwitterApi } = require('twitter-api-v2');
 const TelegramBot = require('node-telegram-bot-api');
 
-// Config
-const telegramToken = process.env.TELEGRAM_TOKEN || 'YOUR_BOT_TOKEN';
-const telegramChannel = process.env.TELEGRAM_CHANNEL || '@YourChannel';
+// Configuration with YOUR keys
 const twitterClient = new TwitterApi({
-  appKey: process.env.TWITTER_API_KEY || 'your_api_key',
-  appSecret: process.env.TWITTER_API_SECRET || 'your_api_secret',
-  accessToken: process.env.TWITTER_ACCESS_TOKEN || 'your_access_token',
-  accessSecret: process.env.TWITTER_ACCESS_SECRET || 'your_access_secret',
+  appKey: 'c1vhMTmK8GuLcOFJ79aduK5et',
+  appSecret: 'hes96oAF3ABxrbRUf9awcJ8gSCMXqtXTDPuaBnS102oIQbEvAH',
+  accessToken: '1785931378107748353-iRS5DDsXrGzchDhl90JtqQNuKtcXDg',
+  accessSecret: '0T93ThzVcvMJ3IRddeBk0mtgtOHXnJCcIkNfWh4l9JrAs'
 });
 
-const bot = new TelegramBot(telegramToken);
+const bot = new TelegramBot('7704093377:AAFpAgbQ6_dbHQm_WZcDxd8EAFJx78-y-Fg', { polling: false });
+const telegramChannel = '@Cryptoland007';
 
-// Proper streaming implementation
-async function streamTweets() {
+// Enhanced error handling and logging
+async function initializeBot() {
   try {
-    // Create a v1.1 client
-    const clientV1 = twitterClient.v1;
+    console.log('🔍 Verifying Twitter credentials...');
+    const user = await twitterClient.v2.me();
+    console.log(`✅ Connected to Twitter as @${user.data.username}`);
+
+    console.log('🔄 Starting tweet stream...');
+    const stream = await twitterClient.v1.filterStream({
+      expansions: ['attachments.media_keys'],
+      'media.fields': ['url']
+    });
+
+    console.log('🤖 Bot is now monitoring tweets for @Cryptoland007');
     
-    // Get your user ID
-    const { id_str: userId } = await clientV1.verifyCredentials();
-    console.log(`🔍 Monitoring tweets for user ID: ${userId}`);
+    stream.on('data', async tweet => {
+      try {
+        // Skip retweets and replies
+        if (tweet.retweeted_status || tweet.in_reply_to_user_id) return;
 
-    // Create filtered stream
-    const rules = await clientV1.streamRules();
-    if (rules.length === 0) {
-      await clientV1.updateStreamRules({
-        add: [{ value: `from:${userId}`, tag: 'my-tweets' }]
-      });
-    }
+        const tweetUrl = `https://twitter.com/${tweet.user.screen_name}/status/${tweet.id_str}`;
+        let message = `🐦 New Tweet from @${tweet.user.screen_name}:\n━━━━━━━━━━━━━━\n${tweet.text}\n\n🔗 ${tweetUrl}`;
 
-    const stream = await clientV1.searchStream();
-    console.log('✅ Bot started. Listening for tweets...');
-
-    stream.on('data', async (tweet) => {
-      // Skip non-tweet objects and retweets
-      if (!tweet.text || tweet.retweeted_status) return;
-
-      console.log('🐦 New tweet detected');
-      const tweetUrl = `https://twitter.com/${tweet.user.screen_name}/status/${tweet.id_str}`;
-      
-      let message = `🐦 New Tweet!\n━━━━━━━━━━\n${tweet.text}\n\n🔗 ${tweetUrl}`;
-
-      // Attach media if available
-      if (tweet.extended_entities?.media) {
-        const mediaUrl = tweet.extended_entities.media[0].media_url_https;
-        await bot.sendPhoto(telegramChannel, mediaUrl, { caption: message });
-      } else {
-        await bot.sendMessage(telegramChannel, message);
+        // Handle media attachments
+        if (tweet.extended_entities?.media) {
+          const mediaUrls = tweet.extended_entities.media.map(m => m.media_url_https);
+          await bot.sendPhoto(telegramChannel, mediaUrls[0], { caption: message });
+          console.log('📸 Sent tweet with media');
+        } else {
+          await bot.sendMessage(telegramChannel, message);
+          console.log('✉️ Sent text tweet');
+        }
+      } catch (error) {
+        console.error('⚠️ Error processing tweet:', error);
       }
     });
 
-    stream.on('error', error => console.error('❌ Stream error:', error));
+    stream.on('error', error => {
+      console.error('🔴 Stream error:', error);
+      process.exit(1);
+    });
 
   } catch (error) {
-    console.error('❌ Failed to start stream:', error);
+    console.error('❌ Initialization failed:', error);
     process.exit(1);
   }
 }
 
-streamTweets();
+initializeBot();
